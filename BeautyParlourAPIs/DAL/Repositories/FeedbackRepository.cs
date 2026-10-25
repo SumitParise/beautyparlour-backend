@@ -1,14 +1,13 @@
-﻿using BeautyParlourAPIs.DAL.Repositories.Interfaces;
+using BeautyParlourAPIs.DAL.Repositories.Interfaces;
 using BeautyParlourAPIs.Models;
 using BeautyParlourAPIs.Services.Interface;
 using Microsoft.EntityFrameworkCore;
 
 namespace BeautyParlourAPIs.DAL.Repositories
 {
-	public class FeedbackRepository:IFeedbackRepository,IDisposable
+	public class FeedbackRepository:IFeedbackRepository
 	{
 		private readonly AppDbContext _context;
-		private bool _disposed = false;
 
 		public FeedbackRepository(AppDbContext context)
 		{
@@ -31,12 +30,9 @@ namespace BeautyParlourAPIs.DAL.Repositories
 			}
 		}
 
-	
-
 		public async Task<IEnumerable<Feedback>> GetAllFeedbackAsync()
 		{
 			var feedbacks = await _context.feedbacks.ToListAsync();
-
 			return feedbacks;
 		}
 
@@ -51,28 +47,6 @@ namespace BeautyParlourAPIs.DAL.Repositories
 			await _context.SaveChangesAsync();
 		}
 
-		public void Dispose()
-		{
-			Dispose(true);
-			GC.SuppressFinalize(this); // Prevent finalizer from running
-		}
-
-		protected virtual void Dispose(bool disposing)
-		{
-			if (!_disposed)
-			{
-				if (disposing)
-				{
-					// Dispose managed resources
-					_context?.Dispose();
-				}
-
-				// Dispose unmanaged resources here if any
-
-				_disposed = true;
-			}
-		}
-
 		public async Task<bool> UpdateIsActive(int feedbackID)
 		{
 			var feedback = await _context.feedbacks.
@@ -81,10 +55,7 @@ namespace BeautyParlourAPIs.DAL.Repositories
 			if (feedback == null)
 				return false;
 
-			// Toggle or set IsActive
 			feedback.IsActive = !feedback.IsActive;
-
-			// Save changes
 			await _context.SaveChangesAsync();
 			return true;
 		}

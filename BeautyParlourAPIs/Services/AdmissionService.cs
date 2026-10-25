@@ -1,4 +1,4 @@
-﻿using Azure.Core;
+using Azure.Core;
 using BeautyParlourAPIs.DAL.Repositories;
 using BeautyParlourAPIs.DAL.Repositories.Interfaces;
 using BeautyParlourAPIs.Models;
@@ -42,13 +42,12 @@ namespace BeautyParlourAPIs.Services
 			};
 
 			// ✅ Save
-			await _admission.Add(admission); // repository method
-											 // If you’re using EF, this should internally call 
+			await _admission.Add(admission);
 
 			var placeholders = new Dictionary<string, string>
-		{
-			{ "Name", admission.Name }
-		};
+			{
+				{ "Name", admission.Name }
+			};
 
 			var htmlBody = await _emailTemplateService.GetTemplateAsync("AdmissionSuccess", placeholders);
 
@@ -56,31 +55,27 @@ namespace BeautyParlourAPIs.Services
 			BackgroundJob.Enqueue(() => _emailService.SendEmailAsync(
 				admission.Email,
 				"🌸 Admission Successful! 🌸",
-				_emailTemplateService.GetTemplateAsync("AdmissionSuccess",placeholders).Result
-				));
-
+				htmlBody
+			));
 
 			return admission; 
-
-
 		}
 
-		public Task<bool> Delete(int id)
+		public async Task<bool> Delete(int id)
 		{
-			var existingAdmission = _admission.GetByID(id);
+			var existingAdmission = await _admission.GetByID(id);
 			if (existingAdmission == null)
 			{
 				throw new KeyNotFoundException($"Admission with ID {id} not found.");
-				
 			}
 
-			_admission.Delete(id);
-			return Task.FromResult(true);
+			await _admission.Delete(id);
+			return true;
 		}
 
-		public Task<Admission> GetByID(int admissionID)
+		public async Task<Admission> GetByID(int admissionID)
 		{
-			var admission = _admission.GetByID(admissionID);
+			var admission = await _admission.GetByID(admissionID);
 			if (admission == null)
 			{
 				throw new KeyNotFoundException($"Admission with ID {admissionID} not found.");
@@ -91,8 +86,7 @@ namespace BeautyParlourAPIs.Services
 
 		public Task<IEnumerable<Admission>> GetListAsync()
 		{
-			var admissions = _admission.GetListAsync();
-			return admissions;
+			return _admission.GetListAsync();
 		}
 
 		public async Task<string> SaveFile(IFormFile file,string Name)
@@ -101,16 +95,15 @@ namespace BeautyParlourAPIs.Services
 			if (!Directory.Exists(uploadsFolder))
 				Directory.CreateDirectory(uploadsFolder);
 
-			// Unique filename
-			var studentName = _admission.GetListAsync()
-							.Result.FirstOrDefault(f=>f.Name.Equals(Name));
+			var admissions = await _admission.GetListAsync();
+			var studentName = admissions.FirstOrDefault(f => f.Name.Equals(Name));
 
 			var document = file.Name;
 
 			if(studentName == null) 
 				throw new ArgumentException("Student not found with the given name.");
 
-			var fileName = studentName.Name+"_"+ document + Path.GetExtension(file.FileName);
+			var fileName = studentName.Name + "_" + document + Path.GetExtension(file.FileName);
 			var filePath = Path.Combine(uploadsFolder, fileName);
 
 			using (var stream = new FileStream(filePath, FileMode.Create))
@@ -118,7 +111,6 @@ namespace BeautyParlourAPIs.Services
 				await file.CopyToAsync(stream);
 			}
 
-			// Return relative path (frontend can access via http://localhost:5000/uploads/...)
 			return $"/uploads/{fileName}";
 		}
 
@@ -138,7 +130,6 @@ namespace BeautyParlourAPIs.Services
 
 		public async Task<bool> UpdatePath(int id,string aadharPath,string passPortPhotoPath,string rationCardPath, string leavingCert)
 		{
-	
 			var result = await _admission.Update(id,aadharPath,passPortPhotoPath,rationCardPath,leavingCert);
 
 			if(!result)

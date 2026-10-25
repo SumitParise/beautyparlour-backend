@@ -1,4 +1,4 @@
-﻿using BeautyParlourAPIs.Models.DTOs;
+using BeautyParlourAPIs.Models.DTOs;
 using BeautyParlourAPIs.Services.Interface;
 using System.Collections.Concurrent;
 
@@ -21,9 +21,9 @@ namespace BeautyParlourAPIs.Services
 			var expiry = DateTime.Now.AddMinutes(5);
 			_otpStore[email] = (otp, expiry);
 			var placeholders = new Dictionary<string, string>
-	{
-		{ "OTP", otp }
-	};
+			{
+				{ "OTP", otp }
+			};
 
 			var htmlBody = await _emailTemplateService.GetTemplateAsync("OtpTemplate", placeholders);
 
@@ -32,7 +32,6 @@ namespace BeautyParlourAPIs.Services
 				"🌸 Your Verification OTP Code 🌸",
 				htmlBody
 			);
-			await _emailService.SendEmailAsync(email, "🌸 Your Verification OTP Code 🌸", htmlBody);
 		}
 
 		public bool VerifyOTP(string email, string otp)

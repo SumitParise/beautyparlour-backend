@@ -25,6 +25,10 @@ bld/
 **/appsettings.Development.json
 **/appsettings.*.local.json
 **/appsettings.Local.json
+*.db
+*.db-shm
+*.db-wal
+beautyparlour.db
 
 ## User uploaded files (sensitive Aadhaar, ration card, photos)
 **/wwwroot/uploads/*

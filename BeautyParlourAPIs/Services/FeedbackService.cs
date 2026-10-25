@@ -1,4 +1,4 @@
-﻿using BeautyParlourAPIs.DAL.Repositories.Interfaces;
+using BeautyParlourAPIs.DAL.Repositories.Interfaces;
 using BeautyParlourAPIs.Models;
 using BeautyParlourAPIs.Services.Interface;
 using Microsoft.EntityFrameworkCore;
@@ -42,21 +42,17 @@ namespace BeautyParlourAPIs.Services
 
 		}
 
-		public Task Delete(int id)
+		public async Task Delete(int id)
 		{
-			var feedback = _feedbackRepository.GetByIdAsync(id);
+			var feedback = await _feedbackRepository.GetByIdAsync(id);
 
 			if (feedback == null)
 			{
 				throw new ArgumentException("Feedback not found.", nameof(id));
 			}
 
-			return _feedbackRepository.DeleteAsync(id);
-
+			await _feedbackRepository.DeleteAsync(id);
 		}
-
-		
-		
 
 		public async Task<Feedback> GetByID(int id)
 		{
@@ -70,15 +66,11 @@ namespace BeautyParlourAPIs.Services
 			return feedback;
 		}
 
-	
-
 		public async Task<IEnumerable<Feedback>> GetListAsync()
 		{
-
 			var todaysDate = DateTime.UtcNow.Date;
 
 			var result = await _feedbackRepository.GetAllFeedbackAsync();
-
 
 			var olderFeedbacks = result
 									.Where(f => f.FeedbackDate.Date <= todaysDate && f.IsActive)
@@ -86,13 +78,12 @@ namespace BeautyParlourAPIs.Services
 									.Take(10)
 									.ToList();
 
-
 			return olderFeedbacks;
 		}
 
 		public async Task<IEnumerable<Feedback>> GetListForAdminAsync()
 		{
-			return  await _feedbackRepository.GetAllFeedbackAsync();
+			return await _feedbackRepository.GetAllFeedbackAsync();
 		}
 
 		public async Task<Feedback> Update(int id,string customerName, int rating, string comments, bool isActive)
@@ -115,17 +106,15 @@ namespace BeautyParlourAPIs.Services
 			var feedbacks = await _feedbackRepository.GetAllFeedbackAsync();
 			var existingFeedback = feedbacks.FirstOrDefault(f => f.FeedbackID == id);
 
-
 			if (existingFeedback == null)
 				throw new KeyNotFoundException($"Feedback with CustomerName '{customerName}' not found");
-
 
 			existingFeedback.CustomerName = customerName;
 			existingFeedback.Ratings = rating;
 			existingFeedback.Comment = comments;
 			existingFeedback.IsActive = isActive;
 
-			await  _feedbackRepository.UpdateAsync(existingFeedback);
+			await _feedbackRepository.UpdateAsync(existingFeedback);
 			return existingFeedback;
 		}
 

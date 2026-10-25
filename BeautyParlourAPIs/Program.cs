@@ -1,4 +1,3 @@
-
 using BeautyParlourAPIs.DAL;
 using BeautyParlourAPIs.DAL.Repositories;
 using BeautyParlourAPIs.DAL.Repositories.Interfaces;
@@ -7,6 +6,7 @@ using BeautyParlourAPIs.Services;
 using BeautyParlourAPIs.Services.Interface;
 using BeautyParlourAPIs.Services.JwtSecurity;
 using Hangfire;
+using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -24,9 +24,9 @@ namespace BeautyParlourAPIs
 			// Define allowed origins for both Dev and Prod
 			string[] allowedOrigins = new string[]
 			{
-	"http://localhost:5173", // Local Vite dev server
-    "https://green-sky-01d955200.3.azurestaticapps.net",
-	"https://www.shrutikamakeover.co.in"// Your Azure Static Web App URL
+				"http://localhost:5173", // Local Vite dev server
+				"https://green-sky-01d955200.3.azurestaticapps.net",
+				"https://www.shrutikamakeover.co.in"// Your Azure Static Web App URL
 			};
 
 			// ✅ Add CORS
@@ -42,30 +42,42 @@ namespace BeautyParlourAPIs
 
 			builder.Services.AddControllers();
 
-			// Entity Framework DbContext configuration
-			//builder.Services.AddDbContext<AppDbContext>(options =>
-			//  options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+			// Database & Hangfire configuration (supports both SQLite local and SQL Server)
+			var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
+			bool isSqlite = string.IsNullOrEmpty(connectionString) || connectionString.Contains("Data Source=", StringComparison.OrdinalIgnoreCase);
 
-
-			//for azure sql with retry logic
-			builder.Services.AddDbContext<AppDbContext>(options =>
-			options.UseSqlServer(
-				builder.Configuration.GetConnectionString("DefaultConnection"),
-				sqlServerOptions => sqlServerOptions.EnableRetryOnFailure(
-					maxRetryCount: 5,                     // number of retries
-					maxRetryDelay: TimeSpan.FromSeconds(10), // wait between retries
-					errorNumbersToAdd: null)              // optional
-				));
-
-
-
-			// Hangfire configuration
-			builder.Services.AddHangfire(config =>
+			if (isSqlite)
 			{
-				config.UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"));
-			});
-			builder.Services.AddHangfireServer();
+				var sqliteConn = string.IsNullOrEmpty(connectionString) || !connectionString.Contains("Data Source=", StringComparison.OrdinalIgnoreCase)
+					? "Data Source=beautyparlour.db"
+					: connectionString;
 
+				builder.Services.AddDbContext<AppDbContext>(options =>
+					options.UseSqlite(sqliteConn));
+
+				builder.Services.AddHangfire(config =>
+				{
+					config.UseMemoryStorage();
+				});
+			}
+			else
+			{
+				builder.Services.AddDbContext<AppDbContext>(options =>
+					options.UseSqlServer(
+						connectionString,
+						sqlServerOptions => sqlServerOptions.EnableRetryOnFailure(
+							maxRetryCount: 5,
+							maxRetryDelay: TimeSpan.FromSeconds(10),
+							errorNumbersToAdd: null)
+					));
+
+				builder.Services.AddHangfire(config =>
+				{
+					config.UseSqlServerStorage(connectionString);
+				});
+			}
+
+			builder.Services.AddHangfireServer();
 
 			builder.Services.AddScoped<IFeedbackRepository, FeedbackRepository>();
             builder.Services.AddScoped<IFeedback, FeedbackService>();
@@ -86,16 +98,13 @@ namespace BeautyParlourAPIs
 			builder.Services.AddScoped<IAuthService, AuthService>();
 			builder.Services.AddSingleton<Jwt>();
 
-
-
-			// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+			// Swagger/OpenAPI
 			builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-
-			//jwt setup configuration
+			// JWT setup configuration
 			var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-			var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]);
+			var key = Encoding.ASCII.GetBytes(jwtSettings["Key"] ?? "DefaultFallbackJwtKey_MustBeLongEnough12345");
 
 			builder.Services.AddAuthentication(options =>
 			{
@@ -120,6 +129,13 @@ namespace BeautyParlourAPIs
 
 			var app = builder.Build();
 
+			// Auto-create database schema if it doesn't exist
+			using (var scope = app.Services.CreateScope())
+			{
+				var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+				db.Database.EnsureCreated();
+			}
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -142,21 +158,17 @@ namespace BeautyParlourAPIs
 				}
 			});
 
-
-
 			app.UseStaticFiles(); // allows serving files from wwwroot
-
 
 			app.UseHttpsRedirection();
 
-			// ? IMPORTANT: Use CORS BEFORE authentication/authorization
+			// CORS must be before authentication/authorization
 			app.UseCors("AllowSpecificOrigins");
 
 			app.UseAuthentication();
 			app.UseAuthorization();
 
-			app.UseHangfireDashboard("/hangfire"); // dashboard UI ? /hangfire
-
+			app.UseHangfireDashboard("/hangfire");
 
 			app.MapControllers();
 

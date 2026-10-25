@@ -1,4 +1,4 @@
-﻿using BeautyParlourAPIs.DAL.Configuration;
+using BeautyParlourAPIs.DAL.Configuration;
 using BeautyParlourAPIs.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,5 +25,18 @@ public class AppDbContext:DbContext
 		modelBuilder.ApplyConfiguration(new CustomerAccountConfiguration());
 		modelBuilder.ApplyConfiguration(new AdminConfiguration());
 
+		if (Database.IsSqlite())
+		{
+			foreach (var entity in modelBuilder.Model.GetEntityTypes())
+			{
+				foreach (var property in entity.GetProperties())
+				{
+					if (property.GetDefaultValueSql() == "GETDATE()")
+					{
+						property.SetDefaultValueSql("CURRENT_TIMESTAMP");
+					}
+				}
+			}
+		}
 	}
 }
