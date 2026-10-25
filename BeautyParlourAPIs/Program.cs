@@ -1,4 +1,4 @@
-﻿
+
 using BeautyParlourAPIs.DAL;
 using BeautyParlourAPIs.DAL.Repositories;
 using BeautyParlourAPIs.DAL.Repositories.Interfaces;
@@ -152,6 +152,7 @@ namespace BeautyParlourAPIs
 			// ? IMPORTANT: Use CORS BEFORE authentication/authorization
 			app.UseCors("AllowSpecificOrigins");
 
+			app.UseAuthentication();
 			app.UseAuthorization();
 
 			app.UseHangfireDashboard("/hangfire"); // dashboard UI ? /hangfire
